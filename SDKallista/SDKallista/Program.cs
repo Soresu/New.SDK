@@ -2,7 +2,6 @@
 using System.Linq;
 using System.Reflection;
 using Color = System.Drawing.Color;
-
 using LeagueSharp;
 using LeagueSharp.SDK.Core;
 using LeagueSharp.SDK.Core.Enumerations;
@@ -73,18 +72,20 @@ namespace SDKallista
             {
                 return;
             }
-            var legendaryMob = GameObjects.JungleLegendary.FirstOrDefault(l => l.Distance(Player)<E.Range && l.Health<GetEdamage(l));
-            if (legendaryMob!=null)
+            var legendaryMob =
+                GameObjects.JungleLegendary.FirstOrDefault(
+                    l => l.Distance(Player) < E.Range && l.Health < GetEdamage(l));
+            if (legendaryMob != null)
             {
                 E.Cast();
-                Console.WriteLine("Damage={0}, Target health={1}", GetEdamage(legendaryMob), legendaryMob.Health);
+                //Console.WriteLine("Damage={0}, Target health={1}", GetEdamage(legendaryMob), legendaryMob.Health);
             }
         }
 
         private static void Combo()
         {
             Obj_AI_Hero target = TargetSelector.GetTarget(2000, DamageType.Physical);
-            if (target==null)
+            if (target == null)
             {
                 return;
             }
@@ -93,14 +94,18 @@ namespace SDKallista
                 Q.CastIfHitchanceMinimum(target, HitChance.High);
             }
 
-            if (E.IsReady() && E.CanCast(target))
+            if (E.IsReady())
             {
                 var buff = target.GetBuff("KalistaExpungeMarker");
-                if (buff != null && config["Combo"]["useEkill"].GetValue<MenuBool>().Value &&
-                    GetEdamage(target) > target.Health)
+                var killableEnemies =
+                    GameObjects.EnemyHeroes.FirstOrDefault(
+                        e => e.Distance(Player) < E.Range && GetEdamage(e) > e.Health && e.IsValidTarget());
+                if (config["Combo"]["useEkill"].GetValue<MenuBool>().Value &&
+                    ((buff != null && E.CanCast(target) && GetEdamage(target) > target.Health) ||
+                     killableEnemies != null))
                 {
                     E.Cast();
-                    Console.WriteLine("Damage={0}, Target health={1}", GetEdamage(target),target.Health);
+                    //Console.WriteLine("Damage={0}, Target health={1}", GetEdamage(target), target.Health);
                 }
                 if (buff != null && config["Combo"]["useEbeforeLeave"].GetValue<MenuBool>().Value &&
                     Player.Distance(target) > E.Range - 100 &&
@@ -124,16 +129,17 @@ namespace SDKallista
                 }
             }
 
-            if (Blitz != null && config["Combo"]["Blitz+Kalista"]["useRbk"].GetValue<MenuBool>().Value && R.IsReady() &&
+            if (Blitz != null && config["Combo"]["BlitzKalista"]["useRbk"].GetValue<MenuBool>().Value && R.IsReady() &&
                 Blitz.HasBuff("kalistacoopstrikeally") &&
-                Blitz.Distance(Player) > config["Combo"]["Blitz+Kalista"]["useRbkMinb"].GetValue<MenuSlider>().Value)
+                Blitz.Distance(Player) > config["Combo"]["BlitzKalista"]["useRbkMinb"].GetValue<MenuSlider>().Value)
             {
                 var blitzTarg =
                     GameObjects.EnemyHeroes.FirstOrDefault(
                         h =>
+                            config["Combo"]["BlitzKalista"]["useRbke" + h.ChampionName].GetValue<MenuBool>().Value &&
                             h.HasBuff("rocketgrab2") &&
                             target.Distance(Player) >
-                            config["Combo"]["Blitz+Kalista"]["useRbkMint"].GetValue<MenuSlider>().Value);
+                            config["Combo"]["BlitzKalista"]["useRbkMint"].GetValue<MenuSlider>().Value);
                 if (blitzTarg != null)
                 {
                     R.Cast();
@@ -141,7 +147,7 @@ namespace SDKallista
             }
             if (config["Misc"]["QSS"]["QSSEnabled"].GetValue<MenuBool>().Value)
             {
-             Cleanse.UseCleanse(config);   
+                Cleanse.UseCleanse(config);
             }
         }
 
@@ -160,7 +166,7 @@ namespace SDKallista
             if (config["Harass"]["useEh"].GetValue<MenuBool>().Value && E.IsReady() && E.CanCast(target))
             {
                 var buff = target.GetBuff("KalistaExpungeMarker");
-                if (buff!=null && buff.Count >= config["Harass"]["useEhStack"].GetValue<MenuSlider>().Value)
+                if (buff != null && buff.Count >= config["Harass"]["useEhStack"].GetValue<MenuSlider>().Value)
                 {
                     var minion =
                         GameObjects.EnemyMinions.FirstOrDefault(m => GetEdamage(m) > m.Health && m.IsValidTarget());
@@ -224,13 +230,12 @@ namespace SDKallista
             }
             DrawCircle(
                 config["Drawings"]["drawRb"].GetValue<MenuBool>().Value,
-                config["Combo"]["Blitz+Kalista"]["useRbkMinb"].GetValue<MenuSlider>().Value, Color.Yellow);
+                config["Combo"]["BlitzKalista"]["useRbkMinb"].GetValue<MenuSlider>().Value, Color.Yellow);
             DrawCircle(
                 config["Drawings"]["drawRt"].GetValue<MenuBool>().Value,
-                config["Combo"]["Blitz+Kalista"]["useRbkMint"].GetValue<MenuSlider>().Value, Color.Red);
+                config["Combo"]["BlitzKalista"]["useRbkMint"].GetValue<MenuSlider>().Value, Color.Red);
         }
 
-        
 
         public static void DrawCircle(bool enabled, float spellRange, Color color)
         {
@@ -245,13 +250,13 @@ namespace SDKallista
             Bootstrap.Init(null);
             config = new Menu("SDKalista ", "SDKalista", true);
             // Blitz+Kallista Settings
-            Menu menuBk = new Menu("Blitz+Kalista", "Blitz+Kalista");
+            Menu menuBk = new Menu("BlitzKalista", "Blitz+Kalista");
             menuBk.Add(new MenuBool("useRbk", "Use R", true));
             menuBk.Add(new MenuSlider("useRbkMinb", "   Blitz min range", 500, 0, 1400));
             menuBk.Add(new MenuSlider("useRbkMint", "   Target Min range", 1200, 0, 2300));
-            foreach (var enemy in GameObjects.EnemyHeroes.Where(h => !h.IsMe && h.ChampionName != "Blitzcrank"))
+            foreach (var enemy in ObjectManager.Get<Obj_AI_Hero>().Where(a => a.IsEnemy))
             {
-                menuBk.Add(new MenuBool("useRbk" + enemy.ChampionName, enemy.ChampionName, true));
+                menuBk.Add(new MenuBool("useRbke" + enemy.ChampionName, enemy.ChampionName, true));
             }
             // Combo Settings
             Menu menuC = new Menu("Combo", "Combo");
@@ -261,12 +266,12 @@ namespace SDKallista
             menuC.Add(new MenuSlider("usEcStack", "   Min stack", 4, 1, 15));
             menuC.Add(new MenuBool("useRc", "Use R", true));
             menuC.Add(new MenuSlider("useRhp", "   Under health", 15, 0, 100));
-            Blitz = GameObjects.AllyHeroes.FirstOrDefault(a => a.ChampionName == "Blitzcrank");
+            Blitz = ObjectManager.Get<Obj_AI_Hero>().FirstOrDefault(a => a.IsAlly && a.ChampionName == "Blitzcrank");
             if (Blitz != null)
             {
                 menuC.Add(menuBk);
             }
-            menuC.Add(new MenuBool("useIgnite", "Use Ignite", true));
+            //menuC.Add(new MenuBool("useIgnite", "Use Ignite", true));
             config.Add(menuC);
             // Harass Settings
             Menu menuH = new Menu("Harass", "Harass");
@@ -296,7 +301,7 @@ namespace SDKallista
             menuD.Add(new MenuBool("drawcombo", "Draw E damage", true));
             config.Add(menuD);
 
-            Menu menuQ = new Menu("QSS", "QSS");
+            Menu menuQ = new Menu("QSS", "QSS in Combo");
             menuQ.Add(new MenuBool("slow", "Slow", false));
             menuQ.Add(new MenuBool("blind", "Blind", false));
             menuQ.Add(new MenuBool("silence", "Silence", false));
@@ -310,7 +315,7 @@ namespace SDKallista
             menuQ.Add(new MenuBool("damager", "Vlad/Zed ult", true));
             menuQ.Add(new MenuSlider("QSSdelay", "Delay in ms", 600, 0, 1500));
             menuQ.Add(new MenuBool("QSSEnabled", "Enabled", true));
-            
+
 
             Menu menuM = new Menu("Misc", "Misc");
             menuM.Add(new MenuSlider("DmgRed", "E damage red", 10, 0, 200));
@@ -349,8 +354,7 @@ namespace SDKallista
         // Made somewhen with Justy
         private static float GetEdamage(Obj_AI_Base target)
         {
-            var buff =
-                target.GetBuff("KalistaExpungeMarker");
+            var buff = target.GetBuff("KalistaExpungeMarker");
             if (buff != null)
             {
                 var dmg =
@@ -358,21 +362,19 @@ namespace SDKallista
                         ((new double[] { 20, 30, 40, 50, 60 }[E.Level - 1] +
                           0.6 * (Player.BaseAttackDamage + Player.FlatPhysicalDamageMod)) +
                          ((buff.Count - 1) *
-                          (new double[] { 5, 9, 14, 20, 27 }[E.Level-1] +
+                          (new double[] { 5, 9, 14, 20, 27 }[E.Level - 1] +
                            new double[] { .15, .18, .21, .24, .27 }[E.Level - 1] *
                            (Player.BaseAttackDamage + Player.FlatPhysicalDamageMod))));
                 if (target.Name.Contains("SRU_Dragon"))
                 {
                     var dsBuff = Player.GetBuff("s5test_dragonslayerbuff");
-                    if (dsBuff!=null)
+                    if (dsBuff != null)
                     {
                         dmg = dmg * (1 - 0.07f * dsBuff.Count);
                     }
                 }
-                return
-                    (float)
-                        Player.CalculateDamage(
-                            target, DamageType.Physical, dmg) - config["Misc"]["DmgRed"].GetValue<MenuSlider>().Value;
+                return (float) Player.CalculateDamage(target, DamageType.Physical, dmg) -
+                       config["Misc"]["DmgRed"].GetValue<MenuSlider>().Value;
             }
             return 0;
         }
