@@ -241,7 +241,7 @@ namespace SDKallista
         {
             if (enabled)
             {
-                Drawing.DrawCircle(Player.Position, spellRange, Color.FromArgb(color.R, color.G, color.B, color.A));
+                Drawing.DrawCircle(Player.Position, spellRange, color);
             }
         }
 
