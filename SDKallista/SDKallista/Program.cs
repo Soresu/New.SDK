@@ -1,6 +1,8 @@
 ﻿using System;
+using System.CodeDom;
 using System.Linq;
 using System.Reflection;
+using System.Windows.Forms;
 using Color = System.Drawing.Color;
 using LeagueSharp;
 using LeagueSharp.SDK.Core;
@@ -24,7 +26,8 @@ namespace SDKallista
         public static Spell Q, W, E, R;
         public static readonly Obj_AI_Hero Player = ObjectManager.Player;
         public static Obj_AI_Hero Blitz;
-
+        public static Vector3 BaronPosition = new Vector3(4938, 10392, -71f);
+        public static Vector3  DragonPosition = new Vector3(9924f, 4470f, -72f);
         private static void Main(string[] args)
         {
             Load.OnLoad += OnGameLoad;
@@ -64,6 +67,44 @@ namespace SDKallista
                     break;
             }
             JungleSteal();
+            GhostHandler();
+            Flee();
+        }
+
+        private static void Flee()
+        {
+            if (!config["Misc"]["flee"].GetValue<MenuKeyBind>().Active)
+            {
+                return;
+            }
+            var targetHero =
+                GameObjects.EnemyHeroes.FirstOrDefault(e => Q.CanCast(e));
+            if (targetHero!=null && Player.CanMove)
+            {
+                if (Q.CanCast(targetHero) && Q.IsReady())
+                {
+                    Q.Cast(targetHero);
+                }
+            }
+            Orbwalker.ActiveMode=OrbwalkerMode.LaneClear;
+        }
+
+        private static void GhostHandler()
+        {
+            if (!W.IsReady() || !config["Misc"]["ghostHandler"].GetValue<MenuKeyBind>().Active)
+            {
+                return;
+            }
+            if (Player.Distance(BaronPosition) <= W.Range)
+            {
+                W.Cast(BaronPosition);
+                return;
+            }
+            if (Player.Distance(DragonPosition) <= W.Range)
+            {
+                W.Cast(DragonPosition);
+                return;
+            }
         }
 
         private static void JungleSteal()
@@ -87,7 +128,12 @@ namespace SDKallista
             Obj_AI_Hero target = TargetSelector.GetTarget(2000, DamageType.Physical);
             if (target == null)
             {
+                Orbwalker.ActiveMode = OrbwalkerMode.LaneClear;
                 return;
+            }
+            if (GameObjects.EnemyHeroes.Count(e => e.Distance(Player) <= Player.GetRealAutoAttackRange() && e.IsValidTarget())==0)
+            {
+                Orbwalker.ActiveMode = OrbwalkerMode.LaneClear;
             }
             if (config["Combo"]["useQc"].GetValue<MenuBool>().Value && Q.IsReady() && Q.CanCast(target))
             {
@@ -316,9 +362,10 @@ namespace SDKallista
             menuQ.Add(new MenuSlider("QSSdelay", "Delay in ms", 600, 0, 1500));
             menuQ.Add(new MenuBool("QSSEnabled", "Enabled", true));
 
-
             Menu menuM = new Menu("Misc", "Misc");
             menuM.Add(new MenuSlider("DmgRed", "E damage red", 10, 0, 200));
+            menuM.Add(new MenuKeyBind("ghostHandler", "Send ghost to baron/dragon", Keys.Y, KeyBindType.Press));
+            menuM.Add(new MenuKeyBind("flee", "Flee", Keys.T, KeyBindType.Press));
             menuM.Add(menuQ);
             config.Add(menuM);
             config.Add(
@@ -370,7 +417,15 @@ namespace SDKallista
                     var dsBuff = Player.GetBuff("s5test_dragonslayerbuff");
                     if (dsBuff != null)
                     {
-                        dmg = dmg * (1 - 0.07f * dsBuff.Count);
+                        dmg = dmg * (1f - 0.07f * dsBuff.Count);
+                    }
+                }
+                if (target.Name.Contains("SRU_Baron"))
+                {
+                    var bBuff = Player.GetBuff("barontarget");
+                    if (bBuff != null)
+                    {
+                        dmg = dmg * 0.5f;
                     }
                 }
                 return (float) Player.CalculateDamage(target, DamageType.Physical, dmg) -
