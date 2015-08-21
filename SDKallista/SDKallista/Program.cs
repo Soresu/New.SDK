@@ -27,7 +27,8 @@ namespace SDKallista
         public static readonly Obj_AI_Hero Player = ObjectManager.Player;
         public static Obj_AI_Hero Blitz;
         public static Vector3 BaronPosition = new Vector3(4938, 10392, -71f);
-        public static Vector3  DragonPosition = new Vector3(9924f, 4470f, -72f);
+        public static Vector3 DragonPosition = new Vector3(9924f, 4470f, -72f);
+
         private static void Main(string[] args)
         {
             Load.OnLoad += OnGameLoad;
@@ -77,16 +78,15 @@ namespace SDKallista
             {
                 return;
             }
-            var targetHero =
-                GameObjects.EnemyHeroes.FirstOrDefault(e => Q.CanCast(e));
-            if (targetHero!=null && Player.CanMove)
+            var targetHero = GameObjects.EnemyHeroes.FirstOrDefault(e => Q.CanCast(e));
+            if (targetHero != null && Player.CanMove)
             {
                 if (Q.CanCast(targetHero) && Q.IsReady())
                 {
                     Q.Cast(targetHero);
                 }
             }
-            Orbwalker.ActiveMode=OrbwalkerMode.LaneClear;
+            Orbwalker.ActiveMode = OrbwalkerMode.LaneClear;
         }
 
         private static void GhostHandler()
@@ -126,14 +126,31 @@ namespace SDKallista
         private static void Combo()
         {
             Obj_AI_Hero target = TargetSelector.GetTarget(2000, DamageType.Physical);
+            var closegap =
+                ObjectManager.Get<Obj_AI_Base>()
+                    .Where(
+                        b =>
+                            !b.IsAlly && b.IsValidTarget(Player.GetRealAutoAttackRange()) &&
+                            (Player.GetAutoAttackDamage(b) < b.Health || Health.GetPrediction(b, 1000) > 0))
+                    .OrderBy(b => Player.GetAutoAttackDamage(b) < b.Health)
+                    .ThenByDescending(b => b.Health)
+                    .FirstOrDefault();
             if (target == null)
             {
-                Orbwalker.ActiveMode = OrbwalkerMode.LaneClear;
+                if (closegap != null)
+                {
+                    Orbwalker.Orbwalk(closegap, Game.CursorPos);
+                }
                 return;
             }
-            if (GameObjects.EnemyHeroes.Count(e => e.Distance(Player) <= Player.GetRealAutoAttackRange() && e.IsValidTarget())==0)
+            if (
+                GameObjects.EnemyHeroes.Count(
+                    e => e.Distance(Player) <= Player.GetRealAutoAttackRange() && e.IsValidTarget()) == 0)
             {
-                Orbwalker.ActiveMode = OrbwalkerMode.LaneClear;
+                if (closegap != null)
+                {
+                    Orbwalker.Orbwalk(closegap, Game.CursorPos);
+                }
             }
             if (config["Combo"]["useQc"].GetValue<MenuBool>().Value && Q.IsReady() && Q.CanCast(target))
             {
@@ -363,7 +380,7 @@ namespace SDKallista
             menuQ.Add(new MenuBool("QSSEnabled", "Enabled", true));
 
             Menu menuM = new Menu("Misc", "Misc");
-            menuM.Add(new MenuSlider("DmgRed", "E damage red", 10, 0, 200));
+            menuM.Add(new MenuSlider("DmgRed", "E damage reduction", 10, 0, 200));
             menuM.Add(new MenuKeyBind("ghostHandler", "Send ghost to baron/dragon", Keys.Y, KeyBindType.Press));
             menuM.Add(new MenuKeyBind("flee", "Flee", Keys.T, KeyBindType.Press));
             menuM.Add(menuQ);
@@ -428,8 +445,10 @@ namespace SDKallista
                         dmg = dmg * 0.5f;
                     }
                 }
-                return (float) Player.CalculateDamage(target, DamageType.Physical, dmg) -
-                       config["Misc"]["DmgRed"].GetValue<MenuSlider>().Value;
+                return
+                    (float)
+                        (Damage.CalculateDamage(Player, target, DamageType.Physical, dmg) -
+                         config["Misc"]["DmgRed"].GetValue<MenuSlider>().Value);
             }
             return 0;
         }
