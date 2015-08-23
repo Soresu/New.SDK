@@ -28,6 +28,7 @@ namespace SDKallista
         public static Obj_AI_Hero Blitz;
         public static Vector3 BaronPosition = new Vector3(4938, 10392, -71f);
         public static Vector3 DragonPosition = new Vector3(9924f, 4470f, -72f);
+        public static Obj_AI_Base basicTarget;
 
         private static void Main(string[] args)
         {
@@ -47,6 +48,7 @@ namespace SDKallista
             Game.OnUpdate += Game_OnGameUpdate;
             HpBarDamageIndicator.DamageToUnit = GetEdamage;
         }
+
 
         private static void Game_OnGameUpdate(EventArgs args)
         {
@@ -70,6 +72,22 @@ namespace SDKallista
             JungleSteal();
             GhostHandler();
             Flee();
+            //LastHitHelper();
+        }
+
+        private static void LastHitHelper()
+        {
+            if (config["Misc"]["useEMinion"].GetValue<MenuBool>().Value && E.IsReady() && !Player.CanAttack)
+            {
+                var minions =
+                    GameObjects.EnemyMinions.Where(
+                        m =>Player.Distance(m) < E.Range &&
+                            GetEdamage(m) > m.Health && Health.GetPrediction(m, 1000) > 0);
+                if (minions.Any())
+                {
+                    E.Cast();
+                }
+            }
         }
 
         private static void Flee()
@@ -381,6 +399,7 @@ namespace SDKallista
 
             Menu menuM = new Menu("Misc", "Misc");
             menuM.Add(new MenuSlider("DmgRed", "E damage reduction", 10, 0, 200));
+            //menuM.Add(new MenuBool("useEMinion", "E lasthit helper", true));
             menuM.Add(new MenuKeyBind("ghostHandler", "Send ghost to baron/dragon", Keys.Y, KeyBindType.Press));
             menuM.Add(new MenuKeyBind("flee", "Flee", Keys.T, KeyBindType.Press));
             menuM.Add(menuQ);
@@ -447,7 +466,7 @@ namespace SDKallista
                 }
                 return
                     (float)
-                        (Damage.CalculateDamage(Player, target, DamageType.Physical, dmg) -
+                        (Player.CalculateDamage(target, DamageType.Physical, dmg) -
                          config["Misc"]["DmgRed"].GetValue<MenuSlider>().Value);
             }
             return 0;
