@@ -28,7 +28,6 @@ namespace SDKallista
         public static Obj_AI_Hero Blitz;
         public static Vector3 BaronPosition = new Vector3(4938, 10392, -71f);
         public static Vector3 DragonPosition = new Vector3(9924f, 4470f, -72f);
-        public static Obj_AI_Base basicTarget;
 
         private static void Main(string[] args)
         {
@@ -72,17 +71,18 @@ namespace SDKallista
             JungleSteal();
             GhostHandler();
             Flee();
-            //LastHitHelper();
+            LastHitHelper();
         }
 
         private static void LastHitHelper()
         {
-            if (config["Misc"]["useEMinion"].GetValue<MenuBool>().Value && E.IsReady() && !Player.CanAttack)
+            if (config["Misc"]["useEMinion"].GetValue<MenuBool>().Value && E.IsReady())
             {
                 var minions =
                     GameObjects.EnemyMinions.Where(
-                        m =>Player.Distance(m) < E.Range &&
-                            GetEdamage(m) > m.Health && Health.GetPrediction(m, 1000) > 0);
+                        m =>
+                            Player.Distance(m) < E.Range && m.Health < 30 && GetEdamage(m) > m.Health &&
+                            Health.GetPrediction(m, 250) > 0);
                 if (minions.Any())
                 {
                     E.Cast();
@@ -104,24 +104,47 @@ namespace SDKallista
                     Q.Cast(targetHero);
                 }
             }
-            Orbwalker.ActiveMode = OrbwalkerMode.LaneClear;
+            var closegap =
+                ObjectManager.Get<Obj_AI_Base>()
+                    .Where(
+                        b =>
+                            !b.IsAlly && b.IsValidTarget(Player.GetRealAutoAttackRange()) &&
+                            (Player.GetAutoAttackDamage(b) < b.Health || Health.GetPrediction(b, 1000) > 0))
+                    .OrderBy(b => Player.GetAutoAttackDamage(b) < b.Health)
+                    .ThenByDescending(b => b is Obj_AI_Hero)
+                    .ThenByDescending(b => b.Health)
+                    .FirstOrDefault();
+            Orbwalker.Orbwalk(closegap, Game.CursorPos);
         }
 
         private static void GhostHandler()
         {
-            if (!W.IsReady() || !config["Misc"]["ghostHandler"].GetValue<MenuKeyBind>().Active)
+            if (!W.IsReady() || !config["Misc"]["ghostHandler"].GetValue<MenuKeyBind>().Active ||
+                Game.MapId != GameMapId.SummonersRift)
             {
                 return;
             }
             if (Player.Distance(BaronPosition) <= W.Range)
             {
-                W.Cast(BaronPosition);
-                return;
+                var dupe =
+                    ObjectManager.Get<Obj_AI_Base>()
+                        .FirstOrDefault(b => b.IsAlly && b.Distance(BaronPosition) < 900 && b.Name == "RobotBuddy");
+                if (dupe == null)
+                {
+                    W.Cast(BaronPosition);
+                    return;
+                }
             }
             if (Player.Distance(DragonPosition) <= W.Range)
             {
-                W.Cast(DragonPosition);
-                return;
+                var dupe =
+                    ObjectManager.Get<Obj_AI_Base>()
+                        .FirstOrDefault(b => b.IsAlly && b.Distance(DragonPosition) < 900 && b.Name == "RobotBuddy");
+                if (dupe == null)
+                {
+                    W.Cast(DragonPosition);
+                    return;
+                }
             }
         }
 
@@ -399,7 +422,7 @@ namespace SDKallista
 
             Menu menuM = new Menu("Misc", "Misc");
             menuM.Add(new MenuSlider("DmgRed", "E damage reduction", 10, 0, 200));
-            //menuM.Add(new MenuBool("useEMinion", "E lasthit helper", true));
+            menuM.Add(new MenuBool("useEMinion", "E lasthit helper", true));
             menuM.Add(new MenuKeyBind("ghostHandler", "Send ghost to baron/dragon", Keys.Y, KeyBindType.Press));
             menuM.Add(new MenuKeyBind("flee", "Flee", Keys.T, KeyBindType.Press));
             menuM.Add(menuQ);
