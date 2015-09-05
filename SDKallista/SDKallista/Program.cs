@@ -81,8 +81,8 @@ namespace SDKallista
                 var minions =
                     GameObjects.EnemyMinions.Where(
                         m =>
-                            Player.Distance(m) < E.Range && m.Health < 30 && GetEdamage(m) > m.Health &&
-                            Health.GetPrediction(m, 250) > 0);
+                            Player.Distance(m) < E.Range && m.Health < 35 && GetEdamage(m) > m.Health &&
+                            Health.GetPrediction(m, 500) > 0);
                 if (minions.Any())
                 {
                     E.Cast();
