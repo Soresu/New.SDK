@@ -61,6 +61,7 @@ namespace SDKallista
                     break;
                 case OrbwalkerMode.LaneClear:
                     Clear();
+                    BuffSteal();
                     break;
                 case OrbwalkerMode.LastHit:
                     Lasthit();
@@ -160,7 +161,20 @@ namespace SDKallista
             if (legendaryMob != null)
             {
                 E.Cast();
-                //Console.WriteLine("Damage={0}, Target health={1}", GetEdamage(legendaryMob), legendaryMob.Health);
+            }
+        }
+
+        private static void BuffSteal()
+        {
+            if (!E.IsReady())
+            {
+                return;
+            }
+            var buffMob =
+                GameObjects.JungleLarge.FirstOrDefault(l => l.Distance(Player) < E.Range && l.Health < GetEdamage(l));
+            if (buffMob != null)
+            {
+                E.Cast();
             }
         }
 
@@ -468,8 +482,8 @@ namespace SDKallista
                         ((new double[] { 20, 30, 40, 50, 60 }[E.Level - 1] +
                           0.6 * (Player.BaseAttackDamage + Player.FlatPhysicalDamageMod)) +
                          ((buff.Count - 1) *
-                          (new double[] { 5, 9, 14, 20, 27 }[E.Level - 1] +
-                           new double[] { .15, .18, .21, .24, .27 }[E.Level - 1] *
+                          (new double[] { 10, 14, 19, 25, 32 }[E.Level - 1] +
+                           new double[] { 0.2, 0.225, 0.25, 0.275, 0.3 }[E.Level - 1] *
                            (Player.BaseAttackDamage + Player.FlatPhysicalDamageMod))));
                 if (target.Name.Contains("SRU_Dragon"))
                 {
