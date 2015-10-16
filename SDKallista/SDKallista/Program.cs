@@ -40,7 +40,6 @@ namespace SDKallista
             {
                 return;
             }
-
             InitKallista();
             InitMenu();
             Drawing.OnDraw += Game_OnDraw;
@@ -286,12 +285,29 @@ namespace SDKallista
                 var buff = target.GetBuff("KalistaExpungeMarker");
                 if (buff != null && buff.Count >= config["Harass"]["useEhStack"].GetValue<MenuSlider>().Value)
                 {
+                    //Console.WriteLine("WAITING");
                     var minion =
-                        GameObjects.EnemyMinions.FirstOrDefault(m => GetEdamage(m) > m.Health && m.IsValidTarget());
-                    if (minion != null)
+                        GameObjects.EnemyMinions.FirstOrDefault(
+                            m =>
+                                GetEdamage(m) > m.Health && m.IsValidTarget(E.Range) && Health.GetPrediction(m, 500) > 0);
+                    if ((minion != null || GetEdamage(target) > target.Health))
                     {
                         E.Cast();
-                    }
+                        return;
+                    }/*
+                    var minionToAttack =
+                        GameObjects.EnemyMinions.Where(
+                            m =>
+                                m.Health > Player.GetAutoAttackDamage(m) &&
+                                GetEdamageToMini(m, 1) > m.Health - Player.GetAutoAttackDamage(m, true) &&
+                                m.IsValidTarget(E.Range) && Health.GetPrediction(m, 500) > 0)
+                            .OrderByDescending(m => Player.Distance(m))
+                            .FirstOrDefault();
+                    if (minionToAttack != null && Orbwalker.CanAttack)
+                    {
+                        Console.WriteLine("NEW");
+                        Player.IssueOrder(GameObjectOrder.AttackUnit, minionToAttack);
+                    }*/
                 }
             }
         }
@@ -365,7 +381,6 @@ namespace SDKallista
 
         private static void InitMenu()
         {
-            Bootstrap.Init(null);
             config = new Menu("SDKalista ", "SDKalista", true);
             // Blitz+Kallista Settings
             Menu menuBk = new Menu("BlitzKalista", "Blitz+Kalista");
@@ -507,6 +522,24 @@ namespace SDKallista
                          config["Misc"]["DmgRed"].GetValue<MenuSlider>().Value);
             }
             return 0;
+        }
+
+        private static float GetEdamageToMini(Obj_AI_Base target, int Count)
+        {
+            var buff = target.GetBuff("KalistaExpungeMarker");
+            if (buff != null)
+            {
+                Count = buff.Count - 1;
+            }
+            var dmg =
+                (float)
+                    ((new double[] { 20, 30, 40, 50, 60 }[E.Level - 1] +
+                      0.6 * (Player.BaseAttackDamage + Player.FlatPhysicalDamageMod)) +
+                     (Count *
+                      (new double[] { 10, 14, 19, 25, 32 }[E.Level - 1] +
+                       new double[] { 0.2, 0.225, 0.25, 0.275, 0.3 }[E.Level - 1] *
+                       (Player.BaseAttackDamage + Player.FlatPhysicalDamageMod))));
+            return (float) (Player.CalculateDamage(target, DamageType.Physical, dmg));
         }
 
         public static int CountChampsAtrange(Vector3 l, float p)
