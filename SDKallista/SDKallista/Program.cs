@@ -50,6 +50,7 @@ namespace SDKallista
 
         private static void Game_OnGameUpdate(EventArgs args)
         {
+            Orbwalker.Attack = true;
             switch (Orbwalker.ActiveMode)
             {
                 case OrbwalkerMode.Orbwalk:
@@ -285,7 +286,6 @@ namespace SDKallista
                 var buff = target.GetBuff("KalistaExpungeMarker");
                 if (buff != null && buff.Count >= config["Harass"]["useEhStack"].GetValue<MenuSlider>().Value)
                 {
-                    //Console.WriteLine("WAITING");
                     var minion =
                         GameObjects.EnemyMinions.FirstOrDefault(
                             m =>
@@ -294,20 +294,20 @@ namespace SDKallista
                     {
                         E.Cast();
                         return;
-                    }/*
+                    }
                     var minionToAttack =
                         GameObjects.EnemyMinions.Where(
                             m =>
-                                m.Health > Player.GetAutoAttackDamage(m) &&
-                                GetEdamageToMini(m, 1) > m.Health - Player.GetAutoAttackDamage(m, true) &&
-                                m.IsValidTarget(E.Range) && Health.GetPrediction(m, 500) > 0)
+                                Health.GetPrediction(m, 800) > Player.GetAutoAttackDamage(m) &&
+                                GetEdamageToMini(m, 1) > Health.GetPrediction(m, 800) - Player.GetAutoAttackDamage(m, true) &&
+                                m.IsValidTarget(E.Range) && Health.GetPrediction(m, 800) > 0)
                             .OrderByDescending(m => Player.Distance(m))
                             .FirstOrDefault();
                     if (minionToAttack != null && Orbwalker.CanAttack)
                     {
-                        Console.WriteLine("NEW");
+                        Orbwalker.Attack = false;
                         Player.IssueOrder(GameObjectOrder.AttackUnit, minionToAttack);
-                    }*/
+                    }
                 }
             }
         }
