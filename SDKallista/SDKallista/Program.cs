@@ -14,6 +14,7 @@ using LeagueSharp.SDK.Core.Events;
 using LeagueSharp.SDK.Core.Math.Prediction;
 using LeagueSharp.SDK.Core.UI.IMenu;
 using LeagueSharp.SDK.Core.Utils;
+using LeagueSharp.SDK.Core.Wrappers.Damages;
 using SharpDX;
 using Menu = LeagueSharp.SDK.Core.UI.IMenu.Menu;
 
